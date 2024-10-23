@@ -54,6 +54,9 @@ class DDPGLagrangian(LagrangianPolicy):
         is None.
     :param Optional[torch.optim.lr_scheduler.LambdaLR] lr_scheduler: learning rate
         scheduler for the optimizer. Default is None.
+    :param list cost_D_iterm: 补充内容，用户数据量限制
+    :param int Niter: 补充内容，动作修正迭代次数，20
+    :param float eta: 补充内容，更新权重，0.05
 
     .. seealso::
 
@@ -61,7 +64,7 @@ class DDPGLagrangian(LagrangianPolicy):
         :class:`~fsrl.policy.LagrangianPolicy` for more detailed \
            hyperparameter explanations and usage.
     """
-
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     def __init__(
         self,
         actor: nn.Module,
@@ -86,7 +89,10 @@ class DDPGLagrangian(LagrangianPolicy):
         action_bound_method: str = "clip",
         observation_space: Optional[gym.Space] = None,
         action_space: Optional[gym.Space] = None,
-        lr_scheduler: Optional[torch.optim.lr_scheduler.LambdaLR] = None
+        lr_scheduler: Optional[torch.optim.lr_scheduler.LambdaLR] = None,
+        cost_D_iterm: Optional[list] = None,
+        Niter: Optional[int] = None,
+        eta: Optional[float] = None
     ) -> None:
         super().__init__(
             actor, critics, None, logger, use_lagrangian, lagrangian_pid, cost_limit,
@@ -161,7 +167,40 @@ class DDPGLagrangian(LagrangianPolicy):
         model = getattr(self, model)
         obs = batch[input]
         actions, hidden = model(obs, state=state, info=batch.info)
+        
         return Batch(act=actions, state=hidden)
+
+    # 补充的安全层
+    def safety_correction(self,state,action,verbose=False):
+        if self.cost_D_iterm = None:
+            self.cost_D_iterm = input("Please input the processed data thresholds (list): ")
+        if self.Niter = None:
+            self.Niter = input("Please input the number of iteration (int): ")
+        if self.eta = None:
+            self.eta = input("Please input the coefficient of gradient descent (float)")
+        if not torch.is_tensor(state):
+            state = torch.tensor(state.reshape(1, -1),requires_grad=False).float().to(self.device)
+        if not torch.is_tensor(action):
+            action = torch.tensor(action.reshape(1, -1),requires_grad=True).float().to(self.device)
+
+        pred = self.C_critic_target(state,action)
+        if pred.item() <= self.delta:
+            return torch.clamp(action,-self.max_action,self.max_action).cpu().data.numpy().flatten()
+        else:
+            for i in range(Niter):
+                if max(np.abs(action.cpu().data.numpy().flatten())) > self.max_action:
+                    break
+                action.retain_grad()
+                self.C_critic_target.zero_grad()
+                pred = self.C_critic_target(state,action)
+                pred.backward(retain_graph=True)
+                if verbose and i % 5 == 0:
+                    print(f'a{i} = {action.cpu().data.numpy().flatten()}, C = {pred.item()}')
+                if pred.item() <= self.delta:
+                    break
+                Z = np.max(np.abs(action.grad.cpu().data.numpy().flatten()))
+                action = action - eta * action.grad / (Z + 1e-8)
+            return torch.clamp(action,-self.max_action,self.max_action).cpu().data.numpy().flatten()
 
     def critics_loss(
         self, batch: Batch, critics: torch.nn.Module, optimizer: torch.optim.Optimizer
