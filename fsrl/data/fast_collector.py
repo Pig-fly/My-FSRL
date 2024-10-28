@@ -37,11 +37,7 @@ class FastCollector(object):
         corresponding policy's exploration noise. If so, "policy. exploration_noise(act,
         batch)" will be called automatically to add the exploration noise into action.
         Default to False.
-    :param my_Niter: 迭代次数
-    :param my_step: 梯度下降步长
-    :param my_D_min: 数据处理门限
-    :param my_if_projection: 是否启用安全层
-
+        
     .. note::
 
         Please make sure the given environment has a time limitation (can be done), \
@@ -55,11 +51,8 @@ class FastCollector(object):
         buffer: Optional[ReplayBuffer] = None,
         preprocess_fn: Optional[Callable[..., Batch]] = None,
         exploration_noise: bool = False,
-        My_Projection_Module = None,
+        SafeCorrection_Module = None,
         my_if_projection = True,
-        my_Niter: int = 5,
-        my_step: float = 0.001,
-        my_D_min: float = 1.0 * 10 ** 5
         
     ) -> None:
         super().__init__()
@@ -76,10 +69,7 @@ class FastCollector(object):
         self._action_space = self.env.action_space
         # avoid creating attribute outside __init__
         self.reset(False)
-        self.My_Projection_Module = My_Projection_Module
-        self.my_Niter = my_Niter
-        self.my_step = my_step
-        self.my_D_min = my_D_min
+        self.SafeCorrection_Module = SafeCorrection_Module
         self.my_if_projection = my_if_projection
 
     def _assign_buffer(self, buffer: Optional[ReplayBuffer]) -> None:
@@ -294,7 +284,7 @@ class FastCollector(object):
                 
                 # 是否启用安全层，数据收集与测试安全
                 if my_if_projection:
-                    act = safety_correction(state=self.data.obs, action=act)
+                    act = self.SafeCorrection_Module.safety_correction(state=self.data.obs, action=act)
                 if self.exploration_noise:
                     act = self.policy.exploration_noise(act, self.data)
                 self.data.update(policy=policy, act=act)
