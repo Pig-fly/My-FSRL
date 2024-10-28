@@ -38,7 +38,7 @@ class FastCollector(object):
         batch)" will be called automatically to add the exploration noise into action.
         Default to False.
     :param my_Niter: 迭代次数
-    :param my_eta: 梯度下降步长
+    :param my_step: 梯度下降步长
     :param my_D_min: 数据处理门限
     :param my_if_projection: 是否启用安全层
 
@@ -56,8 +56,9 @@ class FastCollector(object):
         preprocess_fn: Optional[Callable[..., Batch]] = None,
         exploration_noise: bool = False,
         My_Projection_Module = None,
+        my_if_projection = True,
         my_Niter: int = 5,
-        my_eta: float = 0.001,
+        my_step: float = 0.001,
         my_D_min: float = 1.0 * 10 ** 5
         
     ) -> None:
@@ -77,8 +78,9 @@ class FastCollector(object):
         self.reset(False)
         self.My_Projection_Module = My_Projection_Module
         self.my_Niter = my_Niter
-        self.my_eta = my_eta
+        self.my_step = my_step
         self.my_D_min = my_D_min
+        self.my_if_projection = my_if_projection
 
     def _assign_buffer(self, buffer: Optional[ReplayBuffer]) -> None:
         """Check if the buffer matches the constraint."""
@@ -206,8 +208,8 @@ class FastCollector(object):
     def safety_correction(self,state,action):
         if self.my_Niter = None:
             self.my_Niter = input("Please input the number of iteration (int): ")
-        if self.my_eta = None:
-            self.my_eta = input("Please input the coefficient of gradient descent (float)")
+        if self.my_step = None:
+            self.my_step = input("Please input the coefficient of gradient descent (float)")
         if not torch.is_tensor(state):
             state = torch.tensor(state.reshape(-1, 1),requires_grad=False).float().to('cpu')
         if not torch.is_tensor(action):
@@ -226,7 +228,7 @@ class FastCollector(object):
                 if pred_num >= self.D_min:
                     break
                 Z = np.max(np.abs(action.grad.cpu().data.numpy()), dim=1, keepdim=True)
-                action = action + self.eta * action.grad / (Z + 1e-8)
+                action = action + self.my_step * action.grad / (Z + 1e-8)
             return torch.clamp(action,-1,1).cpu().data.numpy()
     
     def collect(
