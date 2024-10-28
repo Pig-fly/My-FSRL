@@ -203,33 +203,6 @@ class FastCollector(object):
                 obs_reset = self.preprocess_fn(obs=obs_reset,
                                                env_id=global_ids).get("obs", obs_reset)
         self.data.obs_next[local_ids] = obs_reset
-
-    # 补充的安全层
-    def safety_correction(self,state,action):
-        if self.my_Niter = None:
-            self.my_Niter = input("Please input the number of iteration (int): ")
-        if self.my_step = None:
-            self.my_step = input("Please input the coefficient of gradient descent (float)")
-        if not torch.is_tensor(state):
-            state = torch.tensor(state.reshape(-1, 1),requires_grad=False).float().to('cpu')
-        if not torch.is_tensor(action):
-            action = torch.tensor(action.reshape(-1, 1),requires_grad=True).float().to('cpu')
-        pred = self.My_Projection_Module(state,action)
-        pred_num = pred.numpy()
-        if pred_num >= self.D_min:
-            return torch.clamp(action, -1, 1).cpu().data.numpy()
-        else:
-            for i in range(self.my_Niter):
-                action.retain_grad()
-                self.My_Projection_Module.zero_grad()
-                pred = self.My_Projection_Module(state,action)
-                pred.backward(retain_graph=True)
-                pred_num = pred.numpy()
-                if pred_num >= self.D_min:
-                    break
-                Z = np.max(np.abs(action.grad.cpu().data.numpy()), dim=1, keepdim=True)
-                action = action + self.my_step * action.grad / (Z + 1e-8)
-            return torch.clamp(action,-1,1).cpu().data.numpy()
     
     def collect(
         self,
