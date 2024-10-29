@@ -283,8 +283,9 @@ class FastCollector(object):
                 act = to_numpy(result.act)
                 
                 # 是否启用安全层，数据收集与测试安全
-                if my_if_projection:
+                if self.my_if_projection:
                     act = self.SafeCorrection_Module.safety_correction(state=self.data.obs, action=act)
+                    
                 if self.exploration_noise:
                     act = self.policy.exploration_noise(act, self.data)
                 self.data.update(policy=policy, act=act)
